@@ -44,6 +44,10 @@ def tier_probability(rules: Ruleset, tier: PrizeTier) -> Fraction:
         if tier.match_main != rules.digit_count:
             raise ValueError("only straight tiers supported for digit games")
         return Fraction(1, 10**rules.digit_count)
+    if rules.family == GameFamily.CARDS:
+        if tier.match_main != rules.positions:
+            raise ValueError("only match-all tiers supported for card games")
+        return Fraction(1, rules.symbols**rules.positions)
     p_main = match_probability(rules, tier.match_main)
     if tier.match_bonus is None:
         return p_main

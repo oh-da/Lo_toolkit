@@ -66,6 +66,12 @@ def cmd_ingest(args) -> None:
         rules = get_game(GAME_ID)
         draws = load_pais_csv(args.path)
         rep = store.upsert_draws(draws, pool_size=rules.main.pool_size)
+    elif args.source == "chance":
+        from .ingest.sources.chance import GAME_ID, load_chance_csv
+
+        rules = get_game(GAME_ID)
+        draws = load_chance_csv(args.path)
+        rep = store.upsert_draws(draws, pool_size=rules.symbols, ordered=True)
     elif args.source == "ny":
         from .ingest.sources.nyopendata import (
             IngestError,
@@ -91,9 +97,28 @@ def cmd_ingest(args) -> None:
 
 def cmd_audit(args) -> None:
     from .audit.bonus import bonus_uniformity
-    from .games.ruleset import BonusMode
+    from .games.ruleset import BonusMode, GameFamily
 
     rules = get_game(args.game)
+    if rules.family == GameFamily.CARDS:
+        from .audit.cards import run_cards_audit
+        from .ingest.sources.chance import SUITS
+
+        if getattr(args, "simulate", None):
+            rng = np.random.default_rng(args.seed)
+            draws = rng.integers(1, rules.symbols + 1, size=(args.simulate, rules.positions))
+        else:
+            store = Store(args.db)
+            records = store.draws(rules.game_id)
+            if not records:
+                sys.exit(f"no draws for {rules.game_id!r} in {args.db}; ingest data first")
+            draws = np.array([d.numbers for d in records])
+        result = run_cards_audit(
+            rules, draws, n_sims=args.sims, seed=args.seed, position_names=SUITS
+        )
+        print(result.summary())
+        return
+
     bonuses = None
     if getattr(args, "simulate", None):
         draws = _draws_matrix(args, rules)
@@ -179,7 +204,7 @@ def main(argv: list[str] | None = None) -> None:
     sp.set_defaults(func=cmd_odds)
 
     sp = sub.add_parser("ingest", help="ingest draw history")
-    sp.add_argument("source", choices=["csv", "ny", "pais"])
+    sp.add_argument("source", choices=["csv", "ny", "pais", "chance"])
     sp.add_argument("game")
     sp.add_argument("--path", help="CSV path (source=csv)")
     sp.add_argument("--db", default="lo_toolkit.db")

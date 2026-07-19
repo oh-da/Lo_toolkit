@@ -44,6 +44,7 @@ def load_pais_csv(
                     numbers=numbers,
                     bonus=strong,
                     source=str(path),
+                    draw_no=int(row[0]),
                 )
             )
 

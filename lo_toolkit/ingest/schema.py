@@ -16,11 +16,12 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS draws (
     game_id    TEXT NOT NULL,
     draw_date  TEXT NOT NULL,
-    numbers    TEXT NOT NULL,          -- JSON array of main numbers (sorted)
+    draw_no    INTEGER NOT NULL DEFAULT 0,   -- disambiguates multiple draws per day
+    numbers    TEXT NOT NULL,          -- JSON array of main numbers
     bonus      INTEGER,
     multiplier INTEGER,
     source     TEXT,
-    PRIMARY KEY (game_id, draw_date)
+    PRIMARY KEY (game_id, draw_date, draw_no)
 );
 CREATE TABLE IF NOT EXISTS sales (
     game_id       TEXT NOT NULL,
@@ -49,6 +50,7 @@ class Draw:
     bonus: Optional[int] = None
     multiplier: Optional[int] = None
     source: str = ""
+    draw_no: int = 0                   # official draw id; keeps same-day draws distinct
 
 
 @dataclass(frozen=True)
@@ -74,21 +76,30 @@ class Store:
 
     # -- draws ------------------------------------------------------------
     def upsert_draws(
-        self, draws: Iterable[Draw], pool_size: int | None = None
+        self,
+        draws: Iterable[Draw],
+        pool_size: int | None = None,
+        ordered: bool = False,
     ) -> ValidationReport:
-        """Validate and store draws.  Invalid rows are rejected, not raised."""
+        """Validate and store draws.  Invalid rows are rejected, not raised.
+
+        `ordered=True` is for positional games (digits, cards): number order
+        is preserved and repeats across positions are allowed.
+        """
         report = ValidationReport()
         rows = []
         for d in draws:
-            problem = self._validate(d, pool_size)
+            problem = self._validate(d, pool_size, ordered)
             if problem:
                 report.rejected.append(f"{d.game_id} {d.draw_date}: {problem}")
                 continue
+            numbers = list(d.numbers) if ordered else sorted(d.numbers)
             rows.append(
                 (
                     d.game_id,
                     d.draw_date,
-                    json.dumps(sorted(d.numbers)),
+                    d.draw_no,
+                    json.dumps(numbers),
                     d.bonus,
                     d.multiplier,
                     d.source,
@@ -96,14 +107,14 @@ class Store:
             )
         with self.conn:
             self.conn.executemany(
-                "INSERT OR REPLACE INTO draws VALUES (?,?,?,?,?,?)", rows
+                "INSERT OR REPLACE INTO draws VALUES (?,?,?,?,?,?,?)", rows
             )
         report.inserted = len(rows)
         return report
 
     @staticmethod
-    def _validate(d: Draw, pool_size: int | None) -> str | None:
-        if len(set(d.numbers)) != len(d.numbers):
+    def _validate(d: Draw, pool_size: int | None, ordered: bool = False) -> str | None:
+        if not ordered and len(set(d.numbers)) != len(d.numbers):
             return "duplicate numbers"
         if any(n < 1 for n in d.numbers):
             return "numbers must be >= 1"
@@ -113,13 +124,13 @@ class Store:
 
     def draws(self, game_id: str) -> list[Draw]:
         cur = self.conn.execute(
-            "SELECT game_id, draw_date, numbers, bonus, multiplier, source "
-            "FROM draws WHERE game_id=? ORDER BY draw_date",
+            "SELECT game_id, draw_date, draw_no, numbers, bonus, multiplier, source "
+            "FROM draws WHERE game_id=? ORDER BY draw_date, draw_no",
             (game_id,),
         )
         return [
-            Draw(g, dt, tuple(json.loads(nums)), b, m, s or "")
-            for g, dt, nums, b, m, s in cur.fetchall()
+            Draw(g, dt, tuple(json.loads(nums)), b, m, s or "", draw_no=no)
+            for g, dt, no, nums, b, m, s in cur.fetchall()
         ]
 
     # -- sales ------------------------------------------------------------

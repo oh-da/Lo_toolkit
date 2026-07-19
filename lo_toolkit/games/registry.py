@@ -123,9 +123,22 @@ ISRAEL_LOTTO = Ruleset(
     "parimutuel tiers use representative placeholder values.",
 )
 
+CHANCE = Ruleset(
+    game_id="chance_il",
+    name="Israeli Chance (rank per suit, 8^4 outcomes)",
+    family=GameFamily.CARDS,
+    main=FieldSpec(pool_size=8, picks=1),   # unused; kept for schema
+    positions=4,                            # clubs, diamonds, hearts, spades
+    symbols=8,                              # 7, 8, 9, 10, J, Q, K, A
+    ticket_price=5.0,
+    tiers=(PrizeTier("4/4", 4, None, prize=2500),),
+    notes="Representative 'Rav Chance' 4-card bet: match the drawn rank in "
+    "every suit; 1 in 4096, payout placeholder in ILS.",
+)
+
 REGISTRY: dict[str, Ruleset] = {
     r.game_id: r
-    for r in (POWERBALL, MEGA_MILLIONS, LOTTO_649, PICK3, KENO_10, ISRAEL_LOTTO)
+    for r in (POWERBALL, MEGA_MILLIONS, LOTTO_649, PICK3, KENO_10, ISRAEL_LOTTO, CHANCE)
 }
 
 

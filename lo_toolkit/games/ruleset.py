@@ -17,6 +17,7 @@ class GameFamily(str, Enum):
     DIGITS = "digits"              # ordered digits with replacement (Pick 3/4)
     KENO = "keno"                  # player picks k, operator draws d from N
     RAFFLE = "raffle"              # serial-ticket draw
+    CARDS = "cards"                # one symbol per position (Chance: rank per suit)
 
 
 class BonusMode(str, Enum):
@@ -66,6 +67,8 @@ class Ruleset:
     bonus_picks: int = 1
     drawn: Optional[int] = None         # operator draw size when != player picks (Keno)
     digit_count: int = 0                # for DIGITS family
+    positions: int = 0                  # for CARDS family: independent positions
+    symbols: int = 0                    # for CARDS family: symbols per position
     ticket_price: float = 2.0
     tiers: tuple[PrizeTier, ...] = field(default_factory=tuple)
     notes: str = ""
