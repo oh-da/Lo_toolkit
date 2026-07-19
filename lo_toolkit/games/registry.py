@@ -101,8 +101,31 @@ KENO_10 = Ruleset(
     notes="Representative Ohio-style paytable.",
 )
 
+ISRAEL_LOTTO = Ruleset(
+    game_id="lotto_il",
+    name="Israeli Lotto 6/37 + strong 1/7",
+    family=GameFamily.MULTI_POOL,
+    main=FieldSpec(pool_size=37, picks=6),
+    bonus_mode=BonusMode.SEPARATE_POOL,
+    bonus_pool_size=7,
+    ticket_price=2.9,   # ILS per line
+    tiers=(
+        PrizeTier("6+S", 6, True, is_jackpot=True),
+        PrizeTier("6", 6, False, is_parimutuel=True, prize=250_000),
+        PrizeTier("5+S", 5, True, is_parimutuel=True, prize=25_000),
+        PrizeTier("5", 5, False, is_parimutuel=True, prize=3_000),
+        PrizeTier("4+S", 4, True, prize=500),
+        PrizeTier("4", 4, False, prize=65),
+        PrizeTier("3+S", 3, True, prize=50),
+        PrizeTier("3", 3, False, prize=13),
+    ),
+    notes="Format in force since draw 2234 (2011-03-05). Amounts in ILS; "
+    "parimutuel tiers use representative placeholder values.",
+)
+
 REGISTRY: dict[str, Ruleset] = {
-    r.game_id: r for r in (POWERBALL, MEGA_MILLIONS, LOTTO_649, PICK3, KENO_10)
+    r.game_id: r
+    for r in (POWERBALL, MEGA_MILLIONS, LOTTO_649, PICK3, KENO_10, ISRAEL_LOTTO)
 }
 
 

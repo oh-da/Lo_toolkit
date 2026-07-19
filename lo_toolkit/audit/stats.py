@@ -32,8 +32,9 @@ def pairwise_max_dev(draws: np.ndarray, rules: Ruleset) -> float:
         co[np.ix_(row, row)] += 1
     np.fill_diagonal(co, 0)
     expected = pair_cooccurrence_mean(rules, n)
-    iu = np.triu_indices(n_pool + 1, k=1)
-    return float(np.abs(co[iu] - expected).max())
+    real = co[1:, 1:]                     # drop the unused 0 index
+    iu = np.triu_indices(n_pool, k=1)
+    return float(np.abs(real[iu] - expected).max())
 
 
 def mean_min_spacing(draws: np.ndarray, rules: Ruleset) -> float:

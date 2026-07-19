@@ -45,9 +45,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 lo games                                     # built-in games and jackpot odds
 lo odds powerball                            # exact tier odds
 
-# Build a draw archive (official NY Open Data mirrors, or any CSV)
+# Build a draw archive (official NY Open Data mirrors, Mifal HaPayis exports, or any CSV)
 lo ingest ny powerball --db data.db
 lo ingest csv lotto649 --path draws.csv --db data.db
+lo ingest pais lotto_il --path Lotto.csv --db data.db   # Israeli Lotto archive (auto-filters to the 6/37+1/7 era)
 
 # Is the game fair?  (expected answer: yes — and that's the point)
 lo audit lotto649 --db data.db

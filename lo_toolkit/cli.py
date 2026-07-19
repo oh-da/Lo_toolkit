@@ -60,6 +60,12 @@ def cmd_ingest(args) -> None:
         rules = get_game(args.game)
         draws = load_csv(args.path, args.game)
         rep = store.upsert_draws(draws, pool_size=rules.main.pool_size)
+    elif args.source == "pais":
+        from .ingest.sources.israel_lotto import GAME_ID, load_pais_csv
+
+        rules = get_game(GAME_ID)
+        draws = load_pais_csv(args.path)
+        rep = store.upsert_draws(draws, pool_size=rules.main.pool_size)
     elif args.source == "ny":
         from .ingest.sources.nyopendata import (
             IngestError,
@@ -84,10 +90,34 @@ def cmd_ingest(args) -> None:
 
 
 def cmd_audit(args) -> None:
+    from .audit.bonus import bonus_uniformity
+    from .games.ruleset import BonusMode
+
     rules = get_game(args.game)
-    draws = _draws_matrix(args, rules)
+    bonuses = None
+    if getattr(args, "simulate", None):
+        draws = _draws_matrix(args, rules)
+    else:
+        store = Store(args.db)
+        records = store.draws(rules.game_id)
+        if not records:
+            sys.exit(f"no draws for {rules.game_id!r} in {args.db}; ingest data first")
+        draws = np.array([d.numbers for d in records])
+        if rules.bonus_mode == BonusMode.SEPARATE_POOL and all(
+            d.bonus is not None for d in records
+        ):
+            bonuses = np.array([d.bonus for d in records])
     result = run_audit(rules, draws, n_sims=args.sims, seed=args.seed)
     print(result.summary())
+    if bonuses is not None:
+        stat, p = bonus_uniformity(
+            bonuses, rules.bonus_pool_size, n_sims=args.sims, seed=args.seed
+        )
+        verdict = "consistent with uniform" if p >= 0.05 else "NON-UNIFORM (investigate)"
+        print(
+            f"\nBonus-ball uniformity (1..{rules.bonus_pool_size}): "
+            f"chi2={stat:.2f}, MC p={p:.4f} — {verdict}"
+        )
 
 
 def cmd_ev(args) -> None:
@@ -149,7 +179,7 @@ def main(argv: list[str] | None = None) -> None:
     sp.set_defaults(func=cmd_odds)
 
     sp = sub.add_parser("ingest", help="ingest draw history")
-    sp.add_argument("source", choices=["csv", "ny"])
+    sp.add_argument("source", choices=["csv", "ny", "pais"])
     sp.add_argument("game")
     sp.add_argument("--path", help="CSV path (source=csv)")
     sp.add_argument("--db", default="lo_toolkit.db")
