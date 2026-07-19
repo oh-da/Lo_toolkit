@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lo-toolkit"
+version = "0.1.0"
+description = "Audit-first, EV-first lottery analysis toolkit (not a number-prediction oracle)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+plots = ["matplotlib>=3.7"]
+
+[project.scripts]
+lo = "lo_toolkit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["lo_toolkit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
